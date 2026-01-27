@@ -57,6 +57,11 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        chart: {
+          up: "hsl(var(--chart-up))",
+          down: "hsl(var(--chart-down))",
+          grid: "hsl(var(--chart-grid))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
