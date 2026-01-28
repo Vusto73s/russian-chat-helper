@@ -87,7 +87,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
 
     chartRef.current = chart;
 
-    // Candlestick series
+    // Candlestick series - leave room at bottom for indicators
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: 'hsl(142, 76%, 36%)',
       downColor: 'hsl(0, 84%, 60%)',
@@ -96,9 +96,12 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       wickUpColor: 'hsl(142, 76%, 36%)',
       wickDownColor: 'hsl(0, 84%, 60%)',
     });
+    candleSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.05, bottom: 0.35 },
+    });
     seriesRef.current = candleSeries;
 
-    // SMA 3 - White stepped line
+    // SMA 3 - White stepped line (same scale as candles)
     const sma3Series = chart.addSeries(LineSeries, {
       color: '#FFFFFF',
       lineWidth: 1,
@@ -120,7 +123,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
     });
     sma20Ref.current = sma20Series;
 
-    // RSI Pane
+    // RSI Pane - positioned below main chart
     const rsiSeries = chart.addSeries(LineSeries, {
       color: '#9B59B6',
       lineWidth: 1,
@@ -129,7 +132,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       priceScaleId: 'rsi',
     });
     rsiSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
+      scaleMargins: { top: 0.68, bottom: 0.18 },
       borderVisible: false,
     });
     rsiRef.current = rsiSeries;
@@ -159,7 +162,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       priceScaleId: 'macd',
     });
     macdHistogramSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.7, bottom: 0.15 },
+      scaleMargins: { top: 0.85, bottom: 0.02 },
       borderVisible: false,
     });
     macdHistogramRef.current = macdHistogramSeries;
