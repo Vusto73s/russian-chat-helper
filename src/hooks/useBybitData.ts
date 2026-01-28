@@ -50,11 +50,11 @@ export function useBybitCandles(symbol: string, timeframe: Timeframe) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCandles = useCallback(async () => {
+  const fetchCandles = useCallback(async (isInitial = false) => {
     if (!symbol) return;
     
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
       const response = await fetch(
         `${BYBIT_API}/v5/market/kline?category=linear&symbol=${symbol}&interval=${timeframe}&limit=200`
       );
@@ -78,13 +78,13 @@ export function useBybitCandles(symbol: string, timeframe: Timeframe) {
     } catch (err) {
       setError('Ошибка загрузки свечей');
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, [symbol, timeframe]);
 
   useEffect(() => {
-    fetchCandles();
-    const interval = setInterval(fetchCandles, 10000);
+    fetchCandles(true);
+    const interval = setInterval(() => fetchCandles(false), 10000);
     return () => clearInterval(interval);
   }, [fetchCandles]);
 
