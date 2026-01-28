@@ -17,6 +17,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const isFirstLoadRef = useRef(true);
   
   const { candles, loading } = useBybitCandles(symbol, settings.timeframe);
 
@@ -99,8 +100,18 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
     }));
 
     seriesRef.current.setData(chartData);
-    chartRef.current?.timeScale().fitContent();
+    
+    // Fit content only on first load
+    if (isFirstLoadRef.current) {
+      chartRef.current?.timeScale().fitContent();
+      isFirstLoadRef.current = false;
+    }
   }, [displayCandles]);
+
+  // Reset first load flag when symbol or timeframe changes
+  useEffect(() => {
+    isFirstLoadRef.current = true;
+  }, [symbol, settings.timeframe]);
 
   return (
     <div className="flex h-full flex-col rounded-lg border border-border bg-card">
