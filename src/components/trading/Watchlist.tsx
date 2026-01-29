@@ -28,15 +28,27 @@ export function Watchlist({
   const [search, setSearch] = useState('');
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
 
-  const filteredPairs = pairs.filter((pair) => {
-    const matchesSearch = pair.symbol.toLowerCase().includes(search.toLowerCase());
-    const inWatchlist = watchlist.includes(pair.symbol);
-    
-    if (showWatchlistOnly) {
-      return matchesSearch && inWatchlist;
-    }
-    return matchesSearch;
-  });
+  const filteredPairs = pairs
+    .filter((pair) => {
+      const matchesSearch = pair.symbol.toLowerCase().includes(search.toLowerCase());
+      const inWatchlist = watchlist.includes(pair.symbol);
+      
+      if (showWatchlistOnly) {
+        return matchesSearch && inWatchlist;
+      }
+      return matchesSearch;
+    })
+    .sort((a, b) => {
+      const aInWatchlist = watchlist.includes(a.symbol);
+      const bInWatchlist = watchlist.includes(b.symbol);
+      
+      // If both are in watchlist or both are not, sort alphabetically
+      if (aInWatchlist === bInWatchlist) {
+        return a.symbol.localeCompare(b.symbol);
+      }
+      // Watchlist items first
+      return aInWatchlist ? -1 : 1;
+    });
 
   const formatPrice = (price: string) => {
     const num = parseFloat(price);
