@@ -255,17 +255,17 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       macdHistogramRef.current.setData(macdHistogramData);
     }
     
-    // Fit content only on first load
+    // Fit content only on first load or timeframe change
     if (isFirstLoadRef.current) {
       chartRef.current?.timeScale().fitContent();
       isFirstLoadRef.current = false;
     }
   }, [displayCandles, indicators]);
 
-  // Reset first load flag when symbol or timeframe changes
+  // Reset first load flag only when timeframe changes, NOT when symbol changes
   useEffect(() => {
     isFirstLoadRef.current = true;
-  }, [symbol, settings.timeframe]);
+  }, [settings.timeframe]);
 
   return (
     <div className="flex h-full flex-col rounded-lg border border-border bg-card">
