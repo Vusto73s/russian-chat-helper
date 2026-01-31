@@ -3,6 +3,8 @@ export interface TradingPair {
   lastPrice: string;
   price24hPcnt: string;
   volume24h: string;
+  turnover24h: string;
+  maxLeverage?: string;
 }
 
 export interface Candle {
