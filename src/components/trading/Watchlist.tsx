@@ -147,7 +147,7 @@ export function Watchlist({
                   <div className="text-xs font-mono">
                     {formatPrice(pair.lastPrice)}
                   </div>
-                  <div className="text-[10px] font-mono text-muted-foreground">
+                  <div className="text-xs font-mono text-muted-foreground">
                     ${formatTurnover(pair.turnover24h)}
                   </div>
                 </div>
