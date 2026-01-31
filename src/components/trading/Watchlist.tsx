@@ -57,9 +57,12 @@ export function Watchlist({
     return num.toFixed(6);
   };
 
-  const formatPercent = (percent: string) => {
-    const num = parseFloat(percent) * 100;
-    return num.toFixed(2);
+  const formatTurnover = (turnover: string) => {
+    const num = parseFloat(turnover);
+    if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(1) + 'B';
+    if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M';
+    if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K';
+    return num.toFixed(0);
   };
 
   return (
@@ -104,8 +107,6 @@ export function Watchlist({
           {filteredPairs.map((pair) => {
             const isSelected = pair.symbol === selectedSymbol;
             const isInWatchlist = watchlist.includes(pair.symbol);
-            const priceChange = parseFloat(pair.price24hPcnt);
-            const isPositive = priceChange >= 0;
 
             return (
               <div
@@ -135,19 +136,19 @@ export function Watchlist({
                   <span className="text-xs font-medium">
                     {pair.symbol.replace('USDT', '')}
                   </span>
+                  {pair.maxLeverage && (
+                    <span className="text-[9px] text-muted-foreground bg-muted px-1 rounded">
+                      {pair.maxLeverage}x
+                    </span>
+                  )}
                 </div>
                 
                 <div className="text-right">
                   <div className="text-xs font-mono">
                     {formatPrice(pair.lastPrice)}
                   </div>
-                  <div
-                    className={cn(
-                      "text-[10px] font-mono",
-                      isPositive ? "text-chart-up" : "text-chart-down"
-                    )}
-                  >
-                    {isPositive ? "+" : ""}{formatPercent(pair.price24hPcnt)}%
+                  <div className="text-[10px] font-mono text-muted-foreground">
+                    ${formatTurnover(pair.turnover24h)}
                   </div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { 
   createChart, 
   IChartApi, 
@@ -19,6 +19,16 @@ import { calculateSMA, calculateRSI, calculateMACD } from '@/utils/indicators';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 
+// Timeframe durations in milliseconds
+const TIMEFRAME_MS: Record<Timeframe, number> = {
+  '1': 60 * 1000,
+  '5': 5 * 60 * 1000,
+  '15': 15 * 60 * 1000,
+  '60': 60 * 60 * 1000,
+  '240': 4 * 60 * 60 * 1000,
+  'D': 24 * 60 * 60 * 1000,
+};
+
 interface TradingChartProps {
   symbol: string;
   chartIndex: number;
@@ -37,8 +47,35 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
   const macdSignalRef = useRef<ISeriesApi<'Line'> | null>(null);
   const macdHistogramRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const isFirstLoadRef = useRef(true);
+  const [countdown, setCountdown] = useState<string>('');
   
   const { candles, loading } = useBybitCandles(symbol, settings.timeframe);
+
+  // Calculate countdown to candle close
+  const calculateCountdown = useCallback(() => {
+    const now = Date.now();
+    const intervalMs = TIMEFRAME_MS[settings.timeframe];
+    const msUntilClose = intervalMs - (now % intervalMs);
+    
+    const totalSeconds = Math.floor(msUntilClose / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }, [settings.timeframe]);
+
+  // Update countdown every second
+  useEffect(() => {
+    setCountdown(calculateCountdown());
+    const interval = setInterval(() => {
+      setCountdown(calculateCountdown());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [calculateCountdown]);
 
   const displayCandles = useMemo(() => {
     if (settings.candleType === 'heikinashi') {
@@ -328,6 +365,12 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
           </div>
         )}
         <div ref={chartContainerRef} className="h-full w-full" />
+        
+        {/* Countdown overlay */}
+        <div className="absolute bottom-8 right-2 z-20 bg-card/90 border border-border rounded px-2 py-1">
+          <span className="text-xs font-mono text-muted-foreground">⏱ </span>
+          <span className="text-xs font-mono text-foreground">{countdown}</span>
+        </div>
       </div>
     </div>
   );
