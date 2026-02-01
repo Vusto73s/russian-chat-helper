@@ -19,9 +19,12 @@ export type Timeframe = '1' | '5' | '15' | '60' | '240' | 'D';
 
 export type CandleType = 'japanese' | 'heikinashi';
 
+import { IndicatorConfig } from './indicators';
+
 export interface ChartSettings {
   timeframe: Timeframe;
   candleType: CandleType;
+  indicators: IndicatorConfig[];
 }
 
 export const TIMEFRAME_LABELS: Record<Timeframe, string> = {
