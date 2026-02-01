@@ -14,9 +14,11 @@ import {
 } from 'lightweight-charts';
 import { useBybitCandles } from '@/hooks/useBybitData';
 import { ChartSettings, TIMEFRAME_LABELS, Timeframe, CandleType } from '@/types/trading';
+import { IndicatorConfig, SMAConfig, EMAConfig, BBConfig, RSIConfig, MACDConfig, StochasticConfig, isOverlayIndicator } from '@/types/indicators';
 import { convertToHeikinAshi } from '@/utils/heikinAshi';
-import { calculateSMA, calculateRSI, calculateMACD } from '@/utils/indicators';
+import { calculateSMA, calculateEMA, calculateRSI, calculateMACD, calculateBollingerBands, calculateStochastic } from '@/utils/indicators';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { IndicatorSettings } from './IndicatorSettings';
 import { Loader2 } from 'lucide-react';
 
 // Timeframe durations in milliseconds
@@ -36,16 +38,19 @@ interface TradingChartProps {
   onSettingsChange: (settings: ChartSettings) => void;
 }
 
+// Series reference type for dynamic indicators
+interface IndicatorSeries {
+  id: string;
+  type: string;
+  series: ISeriesApi<'Line'>[];
+  histogram?: ISeriesApi<'Histogram'>;
+}
+
 export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const sma3Ref = useRef<ISeriesApi<'Line'> | null>(null);
-  const sma20Ref = useRef<ISeriesApi<'Line'> | null>(null);
-  const rsiRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const macdLineRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const macdSignalRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const macdHistogramRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const indicatorSeriesRef = useRef<IndicatorSeries[]>([]);
   const isFirstLoadRef = useRef(true);
   const [countdown, setCountdown] = useState<string>('');
   
@@ -84,17 +89,37 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
     return candles;
   }, [candles, settings.candleType]);
 
-  // Calculate indicators
-  const indicators = useMemo(() => {
-    if (candles.length === 0) return { sma3: [], sma20: [], rsi: [], macd: [] };
+  // Get enabled indicators
+  const enabledIndicators = useMemo(() => {
+    return settings.indicators.filter(i => i.enabled);
+  }, [settings.indicators]);
+
+  // Calculate pane layout based on enabled indicators
+  const paneLayout = useMemo(() => {
+    const paneIndicators = enabledIndicators.filter(i => !isOverlayIndicator(i.type));
+    const numPanes = paneIndicators.length;
     
-    return {
-      sma3: calculateSMA(candles, 3),
-      sma20: calculateSMA(candles, 20),
-      rsi: calculateRSI(candles, 14),
-      macd: calculateMACD(candles, 12, 26, 9),
-    };
-  }, [candles]);
+    if (numPanes === 0) {
+      return { mainBottom: 0.05, panes: [] };
+    }
+    
+    // Reserve space for panes at bottom
+    const paneHeight = 0.12; // Each pane gets 12%
+    const totalPaneHeight = numPanes * paneHeight;
+    const mainBottom = totalPaneHeight + 0.05;
+    
+    const panes = paneIndicators.map((indicator, index) => {
+      const top = 1 - totalPaneHeight + (index * paneHeight);
+      const bottom = 1 - totalPaneHeight + ((index + 1) * paneHeight);
+      return {
+        id: indicator.id,
+        top: Math.max(0.7, top),
+        bottom: Math.min(0.98, bottom === 1 ? 0.98 : bottom - 0.02),
+      };
+    });
+    
+    return { mainBottom, panes };
+  }, [enabledIndicators]);
 
   // Create chart once
   useEffect(() => {
@@ -124,7 +149,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
 
     chartRef.current = chart;
 
-    // Candlestick series - leave room at bottom for indicators
+    // Candlestick series
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: 'hsl(142, 76%, 36%)',
       downColor: 'hsl(0, 84%, 60%)',
@@ -133,76 +158,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       wickUpColor: 'hsl(142, 76%, 36%)',
       wickDownColor: 'hsl(0, 84%, 60%)',
     });
-    candleSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.05, bottom: 0.35 },
-    });
     seriesRef.current = candleSeries;
-
-    // SMA 3 - White stepped line (same scale as candles)
-    const sma3Series = chart.addSeries(LineSeries, {
-      color: '#FFFFFF',
-      lineWidth: 1,
-      lineStyle: LineStyle.Solid,
-      lineType: 1, // Stepped line
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
-    sma3Ref.current = sma3Series;
-
-    // SMA 20 - Yellow stepped line
-    const sma20Series = chart.addSeries(LineSeries, {
-      color: '#FFD700',
-      lineWidth: 1,
-      lineStyle: LineStyle.Solid,
-      lineType: 1, // Stepped line
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
-    sma20Ref.current = sma20Series;
-
-    // RSI Pane - positioned below main chart
-    const rsiSeries = chart.addSeries(LineSeries, {
-      color: '#9B59B6',
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: true,
-      priceScaleId: 'rsi',
-    });
-    rsiSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.68, bottom: 0.18 },
-      borderVisible: false,
-    });
-    rsiRef.current = rsiSeries;
-
-    // MACD Pane
-    const macdLineSeries = chart.addSeries(LineSeries, {
-      color: '#3498DB',
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      priceScaleId: 'macd',
-    });
-    macdLineRef.current = macdLineSeries;
-
-    const macdSignalSeries = chart.addSeries(LineSeries, {
-      color: '#E74C3C',
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      priceScaleId: 'macd',
-    });
-    macdSignalRef.current = macdSignalSeries;
-
-    const macdHistogramSeries = chart.addSeries(HistogramSeries, {
-      priceLineVisible: false,
-      lastValueVisible: false,
-      priceScaleId: 'macd',
-    });
-    macdHistogramSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.85, bottom: 0.02 },
-      borderVisible: false,
-    });
-    macdHistogramRef.current = macdHistogramSeries;
 
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
@@ -221,16 +177,170 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
-      sma3Ref.current = null;
-      sma20Ref.current = null;
-      rsiRef.current = null;
-      macdLineRef.current = null;
-      macdSignalRef.current = null;
-      macdHistogramRef.current = null;
+      indicatorSeriesRef.current = [];
     };
   }, []);
 
-  // Update data when candles change
+  // Update price scale margins when layout changes
+  useEffect(() => {
+    if (!seriesRef.current) return;
+    seriesRef.current.priceScale().applyOptions({
+      scaleMargins: { top: 0.05, bottom: paneLayout.mainBottom },
+    });
+  }, [paneLayout.mainBottom]);
+
+  // Manage indicator series based on enabled indicators
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const chart = chartRef.current;
+
+    // Get current indicator IDs
+    const currentIds = indicatorSeriesRef.current.map(s => s.id);
+    const enabledIds = enabledIndicators.map(i => i.id);
+
+    // Remove series for disabled indicators
+    indicatorSeriesRef.current = indicatorSeriesRef.current.filter(indSeries => {
+      if (!enabledIds.includes(indSeries.id)) {
+        indSeries.series.forEach(s => chart.removeSeries(s));
+        if (indSeries.histogram) chart.removeSeries(indSeries.histogram);
+        return false;
+      }
+      return true;
+    });
+
+    // Add series for new indicators
+    enabledIndicators.forEach(indicator => {
+      if (currentIds.includes(indicator.id)) return;
+
+      const newSeries: IndicatorSeries = {
+        id: indicator.id,
+        type: indicator.type,
+        series: [],
+      };
+
+      const paneConfig = paneLayout.panes.find(p => p.id === indicator.id);
+
+      switch (indicator.type) {
+        case 'sma':
+        case 'ema': {
+          const series = chart.addSeries(LineSeries, {
+            color: indicator.color,
+            lineWidth: 1,
+            lineStyle: LineStyle.Solid,
+            lineType: indicator.type === 'sma' && (indicator as SMAConfig).lineStyle === 'stepped' ? 1 : 0,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          newSeries.series.push(series);
+          break;
+        }
+        case 'bb': {
+          // Middle band
+          const middle = chart.addSeries(LineSeries, {
+            color: indicator.color,
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          // Upper band
+          const upper = chart.addSeries(LineSeries, {
+            color: indicator.color,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          // Lower band
+          const lower = chart.addSeries(LineSeries, {
+            color: indicator.color,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dashed,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          newSeries.series.push(middle, upper, lower);
+          break;
+        }
+        case 'rsi': {
+          const series = chart.addSeries(LineSeries, {
+            color: indicator.color,
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            priceScaleId: `rsi_${indicator.id}`,
+          });
+          if (paneConfig) {
+            series.priceScale().applyOptions({
+              scaleMargins: { top: paneConfig.top, bottom: 1 - paneConfig.bottom },
+              borderVisible: false,
+            });
+          }
+          newSeries.series.push(series);
+          break;
+        }
+        case 'macd': {
+          const macdConfig = indicator as MACDConfig;
+          const macdLine = chart.addSeries(LineSeries, {
+            color: macdConfig.color,
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            priceScaleId: `macd_${indicator.id}`,
+          });
+          const signalLine = chart.addSeries(LineSeries, {
+            color: macdConfig.signalColor,
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            priceScaleId: `macd_${indicator.id}`,
+          });
+          const histogram = chart.addSeries(HistogramSeries, {
+            priceLineVisible: false,
+            lastValueVisible: false,
+            priceScaleId: `macd_${indicator.id}`,
+          });
+          if (paneConfig) {
+            histogram.priceScale().applyOptions({
+              scaleMargins: { top: paneConfig.top, bottom: 1 - paneConfig.bottom },
+              borderVisible: false,
+            });
+          }
+          newSeries.series.push(macdLine, signalLine);
+          newSeries.histogram = histogram;
+          break;
+        }
+        case 'stochastic': {
+          const stochConfig = indicator as StochasticConfig;
+          const kLine = chart.addSeries(LineSeries, {
+            color: stochConfig.color,
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            priceScaleId: `stoch_${indicator.id}`,
+          });
+          const dLine = chart.addSeries(LineSeries, {
+            color: stochConfig.dColor,
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            priceScaleId: `stoch_${indicator.id}`,
+          });
+          if (paneConfig) {
+            kLine.priceScale().applyOptions({
+              scaleMargins: { top: paneConfig.top, bottom: 1 - paneConfig.bottom },
+              borderVisible: false,
+            });
+          }
+          newSeries.series.push(kLine, dLine);
+          break;
+        }
+      }
+
+      indicatorSeriesRef.current.push(newSeries);
+    });
+  }, [enabledIndicators, paneLayout.panes]);
+
+  // Update data when candles or indicators change
   useEffect(() => {
     if (!seriesRef.current || displayCandles.length === 0) return;
 
@@ -244,65 +354,79 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
     }));
     seriesRef.current.setData(chartData);
 
-    // SMA data
-    if (sma3Ref.current && indicators.sma3.length > 0) {
-      const sma3Data: LineData<Time>[] = indicators.sma3.map((point) => ({
-        time: point.time as Time,
-        value: point.value,
-      }));
-      sma3Ref.current.setData(sma3Data);
-    }
+    // Update indicator data
+    indicatorSeriesRef.current.forEach(indSeries => {
+      const config = enabledIndicators.find(i => i.id === indSeries.id);
+      if (!config) return;
 
-    if (sma20Ref.current && indicators.sma20.length > 0) {
-      const sma20Data: LineData<Time>[] = indicators.sma20.map((point) => ({
-        time: point.time as Time,
-        value: point.value,
-      }));
-      sma20Ref.current.setData(sma20Data);
-    }
-
-    // RSI data
-    if (rsiRef.current && indicators.rsi.length > 0) {
-      const rsiData: LineData<Time>[] = indicators.rsi.map((point) => ({
-        time: point.time as Time,
-        value: point.value,
-      }));
-      rsiRef.current.setData(rsiData);
-    }
-
-    // MACD data
-    if (macdLineRef.current && macdSignalRef.current && macdHistogramRef.current && indicators.macd.length > 0) {
-      const macdLineData: LineData<Time>[] = indicators.macd.map((point) => ({
-        time: point.time as Time,
-        value: point.macd,
-      }));
-      macdLineRef.current.setData(macdLineData);
-
-      const macdSignalData: LineData<Time>[] = indicators.macd.map((point) => ({
-        time: point.time as Time,
-        value: point.signal,
-      }));
-      macdSignalRef.current.setData(macdSignalData);
-
-      const macdHistogramData: HistogramData<Time>[] = indicators.macd.map((point) => ({
-        time: point.time as Time,
-        value: point.histogram,
-        color: point.histogram >= 0 ? 'rgba(38, 166, 154, 0.6)' : 'rgba(239, 83, 80, 0.6)',
-      }));
-      macdHistogramRef.current.setData(macdHistogramData);
-    }
+      switch (config.type) {
+        case 'sma': {
+          const smaConfig = config as SMAConfig;
+          const data = calculateSMA(candles, smaConfig.period);
+          const lineData: LineData<Time>[] = data.map(p => ({ time: p.time as Time, value: p.value }));
+          indSeries.series[0]?.setData(lineData);
+          break;
+        }
+        case 'ema': {
+          const emaConfig = config as EMAConfig;
+          const data = calculateEMA(candles, emaConfig.period);
+          const lineData: LineData<Time>[] = data.map(p => ({ time: p.time as Time, value: p.value }));
+          indSeries.series[0]?.setData(lineData);
+          break;
+        }
+        case 'bb': {
+          const bbConfig = config as BBConfig;
+          const data = calculateBollingerBands(candles, bbConfig.period, bbConfig.stdDev);
+          indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.middle })));
+          indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.upper })));
+          indSeries.series[2]?.setData(data.map(p => ({ time: p.time as Time, value: p.lower })));
+          break;
+        }
+        case 'rsi': {
+          const rsiConfig = config as RSIConfig;
+          const data = calculateRSI(candles, rsiConfig.period);
+          const lineData: LineData<Time>[] = data.map(p => ({ time: p.time as Time, value: p.value }));
+          indSeries.series[0]?.setData(lineData);
+          break;
+        }
+        case 'macd': {
+          const macdConfig = config as MACDConfig;
+          const data = calculateMACD(candles, macdConfig.fastPeriod, macdConfig.slowPeriod, macdConfig.signalPeriod);
+          indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.macd })));
+          indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.signal })));
+          const histData: HistogramData<Time>[] = data.map(p => ({
+            time: p.time as Time,
+            value: p.histogram,
+            color: p.histogram >= 0 ? macdConfig.histogramUpColor : macdConfig.histogramDownColor,
+          }));
+          indSeries.histogram?.setData(histData);
+          break;
+        }
+        case 'stochastic': {
+          const stochConfig = config as StochasticConfig;
+          const data = calculateStochastic(candles, stochConfig.kPeriod, stochConfig.dPeriod, stochConfig.smooth);
+          indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.k })));
+          indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.d })));
+          break;
+        }
+      }
+    });
     
     // Fit content only on first load or timeframe change
     if (isFirstLoadRef.current) {
       chartRef.current?.timeScale().fitContent();
       isFirstLoadRef.current = false;
     }
-  }, [displayCandles, indicators]);
+  }, [displayCandles, candles, enabledIndicators]);
 
-  // Reset first load flag only when timeframe changes, NOT when symbol changes
+  // Reset first load flag only when timeframe changes
   useEffect(() => {
     isFirstLoadRef.current = true;
   }, [settings.timeframe]);
+
+  const handleIndicatorsChange = (newIndicators: IndicatorConfig[]) => {
+    onSettingsChange({ ...settings, indicators: newIndicators });
+  };
 
   return (
     <div className="flex h-full flex-col rounded-lg border border-border bg-card">
@@ -354,6 +478,11 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
               </SelectItem>
             </SelectContent>
           </Select>
+
+          <IndicatorSettings 
+            indicators={settings.indicators}
+            onIndicatorsChange={handleIndicatorsChange}
+          />
         </div>
       </div>
 

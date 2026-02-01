@@ -12,6 +12,19 @@ export interface MACDPoint {
   histogram: number;
 }
 
+export interface BollingerBandsPoint {
+  time: number;
+  middle: number;
+  upper: number;
+  lower: number;
+}
+
+export interface StochasticPoint {
+  time: number;
+  k: number;
+  d: number;
+}
+
 // Simple Moving Average
 export function calculateSMA(candles: Candle[], period: number): IndicatorPoint[] {
   const result: IndicatorPoint[] = [];
@@ -144,6 +157,101 @@ export function calculateMACD(
       macd: macdLine[i].value,
       signal: signal,
       histogram: macdLine[i].value - signal,
+    });
+  }
+  
+  return result;
+}
+
+// Bollinger Bands
+export function calculateBollingerBands(
+  candles: Candle[],
+  period: number = 20,
+  stdDev: number = 2
+): BollingerBandsPoint[] {
+  const result: BollingerBandsPoint[] = [];
+  
+  if (candles.length < period) return result;
+  
+  for (let i = period - 1; i < candles.length; i++) {
+    // Calculate SMA (middle band)
+    let sum = 0;
+    for (let j = 0; j < period; j++) {
+      sum += candles[i - j].close;
+    }
+    const middle = sum / period;
+    
+    // Calculate standard deviation
+    let sumSquaredDiff = 0;
+    for (let j = 0; j < period; j++) {
+      const diff = candles[i - j].close - middle;
+      sumSquaredDiff += diff * diff;
+    }
+    const std = Math.sqrt(sumSquaredDiff / period);
+    
+    result.push({
+      time: candles[i].time,
+      middle,
+      upper: middle + stdDev * std,
+      lower: middle - stdDev * std,
+    });
+  }
+  
+  return result;
+}
+
+// Stochastic Oscillator
+export function calculateStochastic(
+  candles: Candle[],
+  kPeriod: number = 14,
+  dPeriod: number = 3,
+  smooth: number = 3
+): StochasticPoint[] {
+  const result: StochasticPoint[] = [];
+  
+  if (candles.length < kPeriod + dPeriod + smooth - 2) return result;
+  
+  // Calculate raw %K values
+  const rawK: number[] = [];
+  for (let i = kPeriod - 1; i < candles.length; i++) {
+    let highestHigh = -Infinity;
+    let lowestLow = Infinity;
+    
+    for (let j = 0; j < kPeriod; j++) {
+      highestHigh = Math.max(highestHigh, candles[i - j].high);
+      lowestLow = Math.min(lowestLow, candles[i - j].low);
+    }
+    
+    const range = highestHigh - lowestLow;
+    const k = range === 0 ? 50 : ((candles[i].close - lowestLow) / range) * 100;
+    rawK.push(k);
+  }
+  
+  // Smooth %K with SMA (this becomes the final %K)
+  const smoothedK: number[] = [];
+  for (let i = smooth - 1; i < rawK.length; i++) {
+    let sum = 0;
+    for (let j = 0; j < smooth; j++) {
+      sum += rawK[i - j];
+    }
+    smoothedK.push(sum / smooth);
+  }
+  
+  // Calculate %D as SMA of smoothed %K
+  for (let i = dPeriod - 1; i < smoothedK.length; i++) {
+    let sum = 0;
+    for (let j = 0; j < dPeriod; j++) {
+      sum += smoothedK[i - j];
+    }
+    const d = sum / dPeriod;
+    
+    // Calculate the time index
+    const timeIndex = kPeriod - 1 + smooth - 1 + i;
+    
+    result.push({
+      time: candles[timeIndex].time,
+      k: smoothedK[i],
+      d,
     });
   }
   
