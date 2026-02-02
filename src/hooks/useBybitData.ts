@@ -15,11 +15,11 @@ export function useBybitPairs() {
       const tickersData = await tickersResponse.json();
       
       if (tickersData.retCode === 0) {
-        // Get USDT pairs sorted by turnover
+        // Get all USDT pairs sorted by turnover
         const usdtSymbols = tickersData.result.list
           .filter((item: any) => item.symbol.endsWith('USDT'))
           .sort((a: any, b: any) => parseFloat(b.turnover24h) - parseFloat(a.turnover24h))
-          .slice(0, 50);
+          .slice(0, 650);
         
         // Fetch leverage info for all pairs (with higher limit)
         const leverageMap: Record<string, string> = {};
