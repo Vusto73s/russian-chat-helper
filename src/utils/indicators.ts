@@ -25,6 +25,12 @@ export interface StochasticPoint {
   d: number;
 }
 
+export interface ATRPercentPoint {
+  time: number;
+  value: number;
+  color: string; // Dynamic color based on volatility level
+}
+
 // Simple Moving Average
 export function calculateSMA(candles: Candle[], period: number): IndicatorPoint[] {
   const result: IndicatorPoint[] = [];
@@ -252,6 +258,68 @@ export function calculateStochastic(
       time: candles[timeIndex].time,
       k: smoothedK[i],
       d,
+    });
+  }
+  
+  return result;
+}
+
+// ATR Percent - Average True Range as percentage of price
+export function calculateATRPercent(
+  candles: Candle[],
+  period: number = 14,
+  lowThreshold: number = 0.5,
+  mediumThreshold: number = 1.5,
+  highThreshold: number = 3
+): ATRPercentPoint[] {
+  const result: ATRPercentPoint[] = [];
+  
+  if (candles.length < period + 1) return result;
+  
+  // Calculate True Range for each candle
+  const trueRanges: number[] = [];
+  for (let i = 1; i < candles.length; i++) {
+    const high = candles[i].high;
+    const low = candles[i].low;
+    const prevClose = candles[i - 1].close;
+    
+    // True Range = max(high - low, |high - prevClose|, |low - prevClose|)
+    const tr = Math.max(
+      high - low,
+      Math.abs(high - prevClose),
+      Math.abs(low - prevClose)
+    );
+    trueRanges.push(tr);
+  }
+  
+  // Calculate first ATR as simple average
+  let atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  
+  // Helper function to get color based on ATR%
+  const getColor = (atrPercent: number): string => {
+    if (atrPercent < lowThreshold) return '#22C55E';      // Green - low volatility
+    if (atrPercent < mediumThreshold) return '#EAB308';   // Yellow - medium volatility
+    if (atrPercent < highThreshold) return '#F97316';     // Orange - high volatility
+    return '#EF4444';                                      // Red - very high volatility
+  };
+  
+  // Calculate ATR% for first point
+  const firstAtrPercent = (atr / candles[period].close) * 100;
+  result.push({
+    time: candles[period].time,
+    value: firstAtrPercent,
+    color: getColor(firstAtrPercent),
+  });
+  
+  // Calculate rest using Wilder's smoothing (RMA)
+  for (let i = period; i < trueRanges.length; i++) {
+    atr = (atr * (period - 1) + trueRanges[i]) / period;
+    const atrPercent = (atr / candles[i + 1].close) * 100;
+    
+    result.push({
+      time: candles[i + 1].time,
+      value: atrPercent,
+      color: getColor(atrPercent),
     });
   }
   

@@ -21,6 +21,7 @@ import {
   RSIConfig,
   MACDConfig,
   StochasticConfig,
+  ATRConfig,
 } from '@/types/indicators';
 
 interface IndicatorSettingsProps {
@@ -33,7 +34,7 @@ const AVAILABLE_COLORS = [
   '#3498DB', '#2ECC71', '#E74C3C', '#F39C12', '#1ABC9C'
 ];
 
-const INDICATOR_TYPES: IndicatorType[] = ['sma', 'ema', 'bb', 'rsi', 'macd', 'stochastic'];
+const INDICATOR_TYPES: IndicatorType[] = ['sma', 'ema', 'bb', 'rsi', 'macd', 'stochastic', 'atr'];
 
 export function IndicatorSettings({ indicators, onIndicatorsChange }: IndicatorSettingsProps) {
   const [openItems, setOpenItems] = useState<Set<string>>(new Set());
@@ -93,6 +94,8 @@ export function IndicatorSettings({ indicators, onIndicatorsChange }: IndicatorS
         return `MACD (${indicator.fastPeriod}, ${indicator.slowPeriod}, ${indicator.signalPeriod})`;
       case 'stochastic':
         return `Stoch (${indicator.kPeriod}, ${indicator.dPeriod}, ${indicator.smooth})`;
+      case 'atr':
+        return `ATR% (${indicator.period})`;
     }
   };
 
@@ -110,6 +113,8 @@ export function IndicatorSettings({ indicators, onIndicatorsChange }: IndicatorS
         return <MACDSettings indicator={indicator} onUpdate={(u) => updateIndicator(indicator.id, u)} />;
       case 'stochastic':
         return <StochasticSettings indicator={indicator} onUpdate={(u) => updateIndicator(indicator.id, u)} />;
+      case 'atr':
+        return <ATRSettings indicator={indicator} onUpdate={(u) => updateIndicator(indicator.id, u)} />;
       default:
         return null;
     }
@@ -532,6 +537,77 @@ function StochasticSettings({ indicator, onUpdate }: { indicator: StochasticConf
       <div className="space-y-1">
         <Label className="text-xs">Цвет %D</Label>
         <ColorPicker value={indicator.dColor} onChange={(dColor) => onUpdate({ dColor })} />
+      </div>
+    </div>
+  );
+}
+
+function ATRSettings({ indicator, onUpdate }: { indicator: ATRConfig; onUpdate: (u: Partial<ATRConfig>) => void }) {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <Label className="text-xs">Период ATR</Label>
+        <Input
+          type="number"
+          value={indicator.period}
+          onChange={(e) => onUpdate({ period: parseInt(e.target.value) || 14 })}
+          className="h-7 text-xs"
+          min={1}
+          max={100}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs text-muted-foreground">Пороги волатильности (%)</Label>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+              Низкий
+            </Label>
+            <Input
+              type="number"
+              value={indicator.lowThreshold}
+              onChange={(e) => onUpdate({ lowThreshold: parseFloat(e.target.value) || 0.5 })}
+              className="h-7 text-xs"
+              min={0.1}
+              max={5}
+              step={0.1}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+              Средний
+            </Label>
+            <Input
+              type="number"
+              value={indicator.mediumThreshold}
+              onChange={(e) => onUpdate({ mediumThreshold: parseFloat(e.target.value) || 1.5 })}
+              className="h-7 text-xs"
+              min={0.5}
+              max={10}
+              step={0.1}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+              Высокий
+            </Label>
+            <Input
+              type="number"
+              value={indicator.highThreshold}
+              onChange={(e) => onUpdate({ highThreshold: parseFloat(e.target.value) || 3 })}
+              className="h-7 text-xs"
+              min={1}
+              max={20}
+              step={0.5}
+            />
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Выше высокого порога = красный (очень высокая волатильность)
+        </p>
       </div>
     </div>
   );

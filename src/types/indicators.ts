@@ -1,7 +1,7 @@
 // Indicator type definitions
 
 export type OverlayIndicatorType = 'sma' | 'ema' | 'bb';
-export type PaneIndicatorType = 'rsi' | 'macd' | 'stochastic';
+export type PaneIndicatorType = 'rsi' | 'macd' | 'stochastic' | 'atr';
 export type IndicatorType = OverlayIndicatorType | PaneIndicatorType;
 
 // Base configuration
@@ -62,6 +62,16 @@ export interface StochasticConfig extends BaseIndicatorConfig {
   oversold: number;
 }
 
+// ATR Percent Configuration
+export interface ATRConfig extends BaseIndicatorConfig {
+  type: 'atr';
+  period: number;
+  // Volatility thresholds for color coding
+  lowThreshold: number;    // Below this = green (low volatility)
+  mediumThreshold: number; // Below this = yellow
+  highThreshold: number;   // Below this = orange, above = red
+}
+
 // Union type for all indicator configs
 export type IndicatorConfig = 
   | SMAConfig 
@@ -69,7 +79,8 @@ export type IndicatorConfig =
   | BBConfig 
   | RSIConfig 
   | MACDConfig 
-  | StochasticConfig;
+  | StochasticConfig
+  | ATRConfig;
 
 // Helper to check if indicator is overlay (on main chart)
 export function isOverlayIndicator(type: IndicatorType): type is OverlayIndicatorType {
@@ -135,6 +146,16 @@ export const DEFAULT_INDICATOR_CONFIGS: Record<IndicatorType, () => IndicatorCon
     overbought: 80,
     oversold: 20,
   }),
+  atr: () => ({
+    id: crypto.randomUUID(),
+    type: 'atr',
+    enabled: true,
+    period: 14,
+    color: '#2ECC71', // Default green, but color changes dynamically
+    lowThreshold: 0.5,
+    mediumThreshold: 1.5,
+    highThreshold: 3,
+  }),
 };
 
 // Indicator display names
@@ -145,6 +166,7 @@ export const INDICATOR_LABELS: Record<IndicatorType, string> = {
   rsi: 'RSI (Relative Strength Index)',
   macd: 'MACD',
   stochastic: 'Stochastic Oscillator',
+  atr: 'ATR % (Average True Range)',
 };
 
 // Short labels for display
@@ -155,6 +177,7 @@ export const INDICATOR_SHORT_LABELS: Record<IndicatorType, string> = {
   rsi: 'RSI',
   macd: 'MACD',
   stochastic: 'Stoch',
+  atr: 'ATR%',
 };
 
 // Maximum instances per indicator type

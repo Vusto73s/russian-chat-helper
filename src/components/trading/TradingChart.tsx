@@ -14,9 +14,9 @@ import {
 } from 'lightweight-charts';
 import { useBybitCandles } from '@/hooks/useBybitData';
 import { ChartSettings, TIMEFRAME_LABELS, Timeframe, CandleType } from '@/types/trading';
-import { IndicatorConfig, SMAConfig, EMAConfig, BBConfig, RSIConfig, MACDConfig, StochasticConfig, isOverlayIndicator } from '@/types/indicators';
+import { IndicatorConfig, SMAConfig, EMAConfig, BBConfig, RSIConfig, MACDConfig, StochasticConfig, ATRConfig, isOverlayIndicator } from '@/types/indicators';
 import { convertToHeikinAshi } from '@/utils/heikinAshi';
-import { calculateSMA, calculateEMA, calculateRSI, calculateMACD, calculateBollingerBands, calculateStochastic } from '@/utils/indicators';
+import { calculateSMA, calculateEMA, calculateRSI, calculateMACD, calculateBollingerBands, calculateStochastic, calculateATRPercent } from '@/utils/indicators';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { IndicatorSettings } from './IndicatorSettings';
 import { Loader2 } from 'lucide-react';
@@ -334,6 +334,27 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
           newSeries.series.push(kLine, dLine);
           break;
         }
+        case 'atr': {
+          const atrConfig = indicator as ATRConfig;
+          const histogram = chart.addSeries(HistogramSeries, {
+            priceLineVisible: false,
+            lastValueVisible: true,
+            priceScaleId: `atr_${indicator.id}`,
+            priceFormat: {
+              type: 'price',
+              precision: 3,
+              minMove: 0.001,
+            },
+          });
+          if (paneConfig) {
+            histogram.priceScale().applyOptions({
+              scaleMargins: { top: paneConfig.top, bottom: 1 - paneConfig.bottom },
+              borderVisible: false,
+            });
+          }
+          newSeries.histogram = histogram;
+          break;
+        }
       }
 
       indicatorSeriesRef.current.push(newSeries);
@@ -407,6 +428,23 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
           const data = calculateStochastic(candles, stochConfig.kPeriod, stochConfig.dPeriod, stochConfig.smooth);
           indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.k })));
           indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.d })));
+          break;
+        }
+        case 'atr': {
+          const atrConfig = config as ATRConfig;
+          const data = calculateATRPercent(
+            candles, 
+            atrConfig.period, 
+            atrConfig.lowThreshold, 
+            atrConfig.mediumThreshold, 
+            atrConfig.highThreshold
+          );
+          const histData: HistogramData<Time>[] = data.map(p => ({
+            time: p.time as Time,
+            value: p.value,
+            color: p.color,
+          }));
+          indSeries.histogram?.setData(histData);
           break;
         }
       }
