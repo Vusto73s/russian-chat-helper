@@ -578,10 +578,10 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
         )}
         <div ref={chartContainerRef} className="h-full w-full" />
         
-        {/* Countdown overlay - positioned on price scale under current price */}
-        <div className="absolute top-16 right-1 z-20">
+        {/* Countdown overlay - top left corner */}
+        <div className="absolute top-2 left-2 z-20">
           <div className="bg-muted/90 border border-border rounded px-1.5 py-0.5">
-            <span className="text-[10px] font-mono text-muted-foreground">{countdown}</span>
+            <span className="text-[10px] font-mono text-white">{countdown}</span>
           </div>
         </div>
       </div>
