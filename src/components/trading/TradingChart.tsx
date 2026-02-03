@@ -100,21 +100,28 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
     const numPanes = paneIndicators.length;
     
     if (numPanes === 0) {
-      return { mainBottom: 0.05, panes: [] };
+      return { mainBottom: 0.02, panes: [] };
     }
     
-    // Reserve space for panes at bottom
-    const paneHeight = 0.12; // Each pane gets 12%
-    const totalPaneHeight = numPanes * paneHeight;
-    const mainBottom = totalPaneHeight + 0.05;
+    // Each pane gets ~18% of chart height with gaps
+    const paneHeight = 0.16;
+    const gap = 0.02;
+    const bottomMargin = 0.02;
+    
+    // Total space for panes
+    const totalPaneHeight = numPanes * paneHeight + (numPanes - 1) * gap + bottomMargin;
+    const mainBottom = totalPaneHeight;
     
     const panes = paneIndicators.map((indicator, index) => {
-      const top = 1 - totalPaneHeight + (index * paneHeight);
-      const bottom = 1 - totalPaneHeight + ((index + 1) * paneHeight);
+      // Stack panes from bottom to top
+      // First pane (index 0) at bottom, next ones above
+      const distanceFromBottom = bottomMargin + index * (paneHeight + gap);
+      
       return {
         id: indicator.id,
-        top: Math.max(0.7, top),
-        bottom: Math.min(0.98, bottom === 1 ? 0.98 : bottom - 0.02),
+        // For scaleMargins: top = how much to leave at top, bottom = how much to leave at bottom
+        scaleTop: 1 - distanceFromBottom - paneHeight, // Leave space above
+        scaleBottom: distanceFromBottom, // Leave space below
       };
     });
     
@@ -271,7 +278,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
           });
           if (paneConfig) {
             series.priceScale().applyOptions({
-              scaleMargins: { top: paneConfig.top, bottom: 1 - paneConfig.bottom },
+              scaleMargins: { top: paneConfig.scaleTop, bottom: paneConfig.scaleBottom },
               borderVisible: false,
             });
           }
@@ -301,7 +308,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
           });
           if (paneConfig) {
             histogram.priceScale().applyOptions({
-              scaleMargins: { top: paneConfig.top, bottom: 1 - paneConfig.bottom },
+              scaleMargins: { top: paneConfig.scaleTop, bottom: paneConfig.scaleBottom },
               borderVisible: false,
             });
           }
@@ -327,7 +334,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
           });
           if (paneConfig) {
             kLine.priceScale().applyOptions({
-              scaleMargins: { top: paneConfig.top, bottom: 1 - paneConfig.bottom },
+              scaleMargins: { top: paneConfig.scaleTop, bottom: paneConfig.scaleBottom },
               borderVisible: false,
             });
           }
@@ -348,7 +355,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
           });
           if (paneConfig) {
             histogram.priceScale().applyOptions({
-              scaleMargins: { top: paneConfig.top, bottom: 1 - paneConfig.bottom },
+              scaleMargins: { top: paneConfig.scaleTop, bottom: paneConfig.scaleBottom },
               borderVisible: false,
             });
           }
@@ -359,9 +366,47 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
 
       indicatorSeriesRef.current.push(newSeries);
     });
-  }, [enabledIndicators, paneLayout.panes]);
+  }, [enabledIndicators.map(i => i.id).join(','), paneLayout.panes]);
 
-  // Update data when candles or indicators change
+  // Update series colors when indicator config changes
+  useEffect(() => {
+    indicatorSeriesRef.current.forEach(indSeries => {
+      const config = enabledIndicators.find(i => i.id === indSeries.id);
+      if (!config) return;
+
+      switch (config.type) {
+        case 'sma':
+        case 'ema': {
+          indSeries.series[0]?.applyOptions({ color: config.color });
+          break;
+        }
+        case 'bb': {
+          const bbConfig = config as BBConfig;
+          indSeries.series[0]?.applyOptions({ color: bbConfig.color });
+          indSeries.series[1]?.applyOptions({ color: bbConfig.color });
+          indSeries.series[2]?.applyOptions({ color: bbConfig.color });
+          break;
+        }
+        case 'rsi': {
+          indSeries.series[0]?.applyOptions({ color: config.color });
+          break;
+        }
+        case 'macd': {
+          const macdConfig = config as MACDConfig;
+          indSeries.series[0]?.applyOptions({ color: macdConfig.color });
+          indSeries.series[1]?.applyOptions({ color: macdConfig.signalColor });
+          break;
+        }
+        case 'stochastic': {
+          const stochConfig = config as StochasticConfig;
+          indSeries.series[0]?.applyOptions({ color: stochConfig.color });
+          indSeries.series[1]?.applyOptions({ color: stochConfig.dColor });
+          break;
+        }
+      }
+    });
+  }, [enabledIndicators]);
+
   useEffect(() => {
     if (!seriesRef.current || displayCandles.length === 0) return;
 
@@ -533,10 +578,11 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
         )}
         <div ref={chartContainerRef} className="h-full w-full" />
         
-        {/* Countdown overlay */}
-        <div className="absolute bottom-8 right-2 z-20 bg-card/90 border border-border rounded px-2 py-1">
-          <span className="text-xs font-mono text-muted-foreground">⏱ </span>
-          <span className="text-xs font-mono text-foreground">{countdown}</span>
+        {/* Countdown overlay - positioned on price scale under current price */}
+        <div className="absolute top-16 right-1 z-20">
+          <div className="bg-muted/90 border border-border rounded px-1.5 py-0.5">
+            <span className="text-[10px] font-mono text-muted-foreground">{countdown}</span>
+          </div>
         </div>
       </div>
     </div>
