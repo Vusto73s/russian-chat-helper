@@ -152,6 +152,16 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
         timeVisible: true,
         secondsVisible: false,
       },
+      localization: {
+        timeFormatter: (time: number) => {
+          const date = new Date(time * 1000);
+          return date.toLocaleTimeString('pl-PL', {
+            timeZone: 'Europe/Warsaw',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        },
+      },
     });
 
     chartRef.current = chart;
@@ -237,6 +247,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
             lineType: indicator.type === 'sma' && (indicator as SMAConfig).lineStyle === 'stepped' ? 1 : 0,
             priceLineVisible: false,
             lastValueVisible: false,
+            crosshairMarkerVisible: false,
           });
           newSeries.series.push(series);
           break;
@@ -248,6 +259,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
             lineWidth: 1,
             priceLineVisible: false,
             lastValueVisible: false,
+            crosshairMarkerVisible: false,
           });
           // Upper band
           const upper = chart.addSeries(LineSeries, {
@@ -256,6 +268,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
             lineStyle: LineStyle.Dashed,
             priceLineVisible: false,
             lastValueVisible: false,
+            crosshairMarkerVisible: false,
           });
           // Lower band
           const lower = chart.addSeries(LineSeries, {
@@ -264,6 +277,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
             lineStyle: LineStyle.Dashed,
             priceLineVisible: false,
             lastValueVisible: false,
+            crosshairMarkerVisible: false,
           });
           newSeries.series.push(middle, upper, lower);
           break;
@@ -275,6 +289,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
             priceLineVisible: false,
             lastValueVisible: true,
             priceScaleId: `rsi_${indicator.id}`,
+            crosshairMarkerVisible: false,
           });
           if (paneConfig) {
             series.priceScale().applyOptions({
@@ -293,6 +308,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
             priceLineVisible: false,
             lastValueVisible: false,
             priceScaleId: `macd_${indicator.id}`,
+            crosshairMarkerVisible: false,
           });
           const signalLine = chart.addSeries(LineSeries, {
             color: macdConfig.signalColor,
@@ -300,6 +316,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
             priceLineVisible: false,
             lastValueVisible: false,
             priceScaleId: `macd_${indicator.id}`,
+            crosshairMarkerVisible: false,
           });
           const histogram = chart.addSeries(HistogramSeries, {
             priceLineVisible: false,
@@ -324,6 +341,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
             priceLineVisible: false,
             lastValueVisible: true,
             priceScaleId: `stoch_${indicator.id}`,
+            crosshairMarkerVisible: false,
           });
           const dLine = chart.addSeries(LineSeries, {
             color: stochConfig.dColor,
@@ -331,6 +349,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
             priceLineVisible: false,
             lastValueVisible: false,
             priceScaleId: `stoch_${indicator.id}`,
+            crosshairMarkerVisible: false,
           });
           if (paneConfig) {
             kLine.priceScale().applyOptions({
