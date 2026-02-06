@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { TradingPair } from '@/types/trading';
+import { HASignal } from '@/utils/haPatterns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Star, StarOff, RefreshCw } from 'lucide-react';
+import { Search, Star, StarOff, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WatchlistProps {
@@ -14,6 +15,7 @@ interface WatchlistProps {
   onToggleWatchlist: (symbol: string) => void;
   loading: boolean;
   onRefresh: () => void;
+  getSignal?: (symbol: string) => HASignal | undefined;
 }
 
 export function Watchlist({
@@ -24,6 +26,7 @@ export function Watchlist({
   onToggleWatchlist,
   loading,
   onRefresh,
+  getSignal,
 }: WatchlistProps) {
   const [search, setSearch] = useState('');
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
@@ -107,6 +110,7 @@ export function Watchlist({
           {filteredPairs.map((pair) => {
             const isSelected = pair.symbol === selectedSymbol;
             const isInWatchlist = watchlist.includes(pair.symbol);
+            const signal = getSignal?.(pair.symbol);
 
             return (
               <div
@@ -115,7 +119,10 @@ export function Watchlist({
                   "group flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 transition-colors",
                   isSelected
                     ? "bg-primary/20 text-primary"
-                    : "hover:bg-accent"
+                    : "hover:bg-accent",
+                  signal && "ring-1 ring-inset",
+                  signal?.direction === 'bullish' && "ring-green-500/50",
+                  signal?.direction === 'bearish' && "ring-red-500/50"
                 )}
                 onClick={() => onSelectSymbol(pair.symbol)}
               >
@@ -140,6 +147,13 @@ export function Watchlist({
                     <span className="text-[9px] text-muted-foreground bg-muted px-1 rounded">
                       {pair.maxLeverage}x
                     </span>
+                  )}
+                  {signal && (
+                    signal.direction === 'bullish' ? (
+                      <TrendingUp className="h-3.5 w-3.5 text-green-500 animate-pulse" />
+                    ) : (
+                      <TrendingDown className="h-3.5 w-3.5 text-red-500 animate-pulse" />
+                    )
                   )}
                 </div>
                 
