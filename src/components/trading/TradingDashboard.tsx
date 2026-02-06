@@ -1,5 +1,6 @@
 import { useBybitPairs } from '@/hooks/useBybitData';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useHAScanner } from '@/hooks/useHAScanner';
 import { ChartSettings } from '@/types/trading';
 import { IndicatorConfig } from '@/types/indicators';
 import { Watchlist } from './Watchlist';
@@ -71,6 +72,9 @@ export function TradingDashboard() {
     DEFAULT_CHART_SETTINGS
   );
 
+  // HA pattern scanner for favorites on 15m timeframe
+  const { getSignal } = useHAScanner(watchlist);
+
   const handleToggleWatchlist = (symbol: string) => {
     setWatchlist((prev) =>
       prev.includes(symbol)
@@ -99,6 +103,7 @@ export function TradingDashboard() {
           onToggleWatchlist={handleToggleWatchlist}
           loading={loading}
           onRefresh={refetch}
+          getSignal={getSignal}
         />
       </div>
 
