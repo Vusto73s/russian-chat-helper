@@ -437,80 +437,89 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       low: candle.low,
       close: candle.close,
     }));
-    seriesRef.current.setData(chartData);
+    try {
+      seriesRef.current.setData(chartData);
+    } catch (e) {
+      console.error('Error setting candle data:', e);
+      return;
+    }
 
     // Update indicator data
     indicatorSeriesRef.current.forEach(indSeries => {
       const config = enabledIndicators.find(i => i.id === indSeries.id);
       if (!config) return;
 
-      switch (config.type) {
-        case 'sma': {
-          const smaConfig = config as SMAConfig;
-          const data = calculateSMA(candles, smaConfig.period);
-          const lineData: LineData<Time>[] = data.map(p => ({ time: p.time as Time, value: p.value }));
-          indSeries.series[0]?.setData(lineData);
-          break;
+      try {
+        switch (config.type) {
+          case 'sma': {
+            const smaConfig = config as SMAConfig;
+            const data = calculateSMA(candles, smaConfig.period);
+            const lineData: LineData<Time>[] = data.map(p => ({ time: p.time as Time, value: p.value }));
+            indSeries.series[0]?.setData(lineData);
+            break;
+          }
+          case 'ema': {
+            const emaConfig = config as EMAConfig;
+            const data = calculateEMA(candles, emaConfig.period);
+            const lineData: LineData<Time>[] = data.map(p => ({ time: p.time as Time, value: p.value }));
+            indSeries.series[0]?.setData(lineData);
+            break;
+          }
+          case 'bb': {
+            const bbConfig = config as BBConfig;
+            const data = calculateBollingerBands(candles, bbConfig.period, bbConfig.stdDev);
+            indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.middle })));
+            indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.upper })));
+            indSeries.series[2]?.setData(data.map(p => ({ time: p.time as Time, value: p.lower })));
+            break;
+          }
+          case 'rsi': {
+            const rsiConfig = config as RSIConfig;
+            const data = calculateRSI(candles, rsiConfig.period);
+            const lineData: LineData<Time>[] = data.map(p => ({ time: p.time as Time, value: p.value }));
+            indSeries.series[0]?.setData(lineData);
+            break;
+          }
+          case 'macd': {
+            const macdConfig = config as MACDConfig;
+            const data = calculateMACD(candles, macdConfig.fastPeriod, macdConfig.slowPeriod, macdConfig.signalPeriod);
+            indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.macd })));
+            indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.signal })));
+            const histData: HistogramData<Time>[] = data.map(p => ({
+              time: p.time as Time,
+              value: p.histogram,
+              color: p.histogram >= 0 ? macdConfig.histogramUpColor : macdConfig.histogramDownColor,
+            }));
+            indSeries.histogram?.setData(histData);
+            break;
+          }
+          case 'stochastic': {
+            const stochConfig = config as StochasticConfig;
+            const data = calculateStochastic(candles, stochConfig.kPeriod, stochConfig.dPeriod, stochConfig.smooth);
+            indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.k })));
+            indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.d })));
+            break;
+          }
+          case 'atr': {
+            const atrConfig = config as ATRConfig;
+            const data = calculateATRPercent(
+              candles, 
+              atrConfig.period, 
+              atrConfig.lowThreshold, 
+              atrConfig.mediumThreshold, 
+              atrConfig.highThreshold
+            );
+            const histData: HistogramData<Time>[] = data.map(p => ({
+              time: p.time as Time,
+              value: p.value,
+              color: p.color,
+            }));
+            indSeries.histogram?.setData(histData);
+            break;
+          }
         }
-        case 'ema': {
-          const emaConfig = config as EMAConfig;
-          const data = calculateEMA(candles, emaConfig.period);
-          const lineData: LineData<Time>[] = data.map(p => ({ time: p.time as Time, value: p.value }));
-          indSeries.series[0]?.setData(lineData);
-          break;
-        }
-        case 'bb': {
-          const bbConfig = config as BBConfig;
-          const data = calculateBollingerBands(candles, bbConfig.period, bbConfig.stdDev);
-          indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.middle })));
-          indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.upper })));
-          indSeries.series[2]?.setData(data.map(p => ({ time: p.time as Time, value: p.lower })));
-          break;
-        }
-        case 'rsi': {
-          const rsiConfig = config as RSIConfig;
-          const data = calculateRSI(candles, rsiConfig.period);
-          const lineData: LineData<Time>[] = data.map(p => ({ time: p.time as Time, value: p.value }));
-          indSeries.series[0]?.setData(lineData);
-          break;
-        }
-        case 'macd': {
-          const macdConfig = config as MACDConfig;
-          const data = calculateMACD(candles, macdConfig.fastPeriod, macdConfig.slowPeriod, macdConfig.signalPeriod);
-          indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.macd })));
-          indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.signal })));
-          const histData: HistogramData<Time>[] = data.map(p => ({
-            time: p.time as Time,
-            value: p.histogram,
-            color: p.histogram >= 0 ? macdConfig.histogramUpColor : macdConfig.histogramDownColor,
-          }));
-          indSeries.histogram?.setData(histData);
-          break;
-        }
-        case 'stochastic': {
-          const stochConfig = config as StochasticConfig;
-          const data = calculateStochastic(candles, stochConfig.kPeriod, stochConfig.dPeriod, stochConfig.smooth);
-          indSeries.series[0]?.setData(data.map(p => ({ time: p.time as Time, value: p.k })));
-          indSeries.series[1]?.setData(data.map(p => ({ time: p.time as Time, value: p.d })));
-          break;
-        }
-        case 'atr': {
-          const atrConfig = config as ATRConfig;
-          const data = calculateATRPercent(
-            candles, 
-            atrConfig.period, 
-            atrConfig.lowThreshold, 
-            atrConfig.mediumThreshold, 
-            atrConfig.highThreshold
-          );
-          const histData: HistogramData<Time>[] = data.map(p => ({
-            time: p.time as Time,
-            value: p.value,
-            color: p.color,
-          }));
-          indSeries.histogram?.setData(histData);
-          break;
-        }
+      } catch (e) {
+        console.error(`Error updating indicator ${config.type}:`, e);
       }
     });
     
