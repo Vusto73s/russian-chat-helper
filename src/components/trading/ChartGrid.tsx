@@ -1,4 +1,5 @@
 import { TradingChart } from './TradingChart';
+import { ChartErrorBoundary } from './ChartErrorBoundary';
 import { ChartSettings } from '@/types/trading';
 
 interface ChartGridProps {
@@ -11,13 +12,14 @@ export function ChartGrid({ symbol, chartSettings, onChartSettingsChange }: Char
   return (
     <div className="grid h-full grid-cols-2 grid-rows-2 gap-2 p-2">
       {chartSettings.map((settings, index) => (
-        <TradingChart
-          key={index}
-          symbol={symbol}
-          chartIndex={index}
-          settings={settings}
-          onSettingsChange={(newSettings) => onChartSettingsChange(index, newSettings)}
-        />
+        <ChartErrorBoundary key={index} chartIndex={index}>
+          <TradingChart
+            symbol={symbol}
+            chartIndex={index}
+            settings={settings}
+            onSettingsChange={(newSettings) => onChartSettingsChange(index, newSettings)}
+          />
+        </ChartErrorBoundary>
       ))}
     </div>
   );
