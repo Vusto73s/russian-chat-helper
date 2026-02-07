@@ -142,7 +142,7 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
         horzLines: { color: 'hsl(220, 20%, 18%)' },
       },
       crosshair: {
-        mode: 1,
+        mode: 0,
       },
       rightPriceScale: {
         borderColor: 'hsl(220, 20%, 20%)',
