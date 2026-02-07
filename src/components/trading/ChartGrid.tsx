@@ -6,9 +6,10 @@ interface ChartGridProps {
   symbol: string;
   chartSettings: ChartSettings[];
   onChartSettingsChange: (index: number, settings: ChartSettings) => void;
+  tickSize: string;
 }
 
-export function ChartGrid({ symbol, chartSettings, onChartSettingsChange }: ChartGridProps) {
+export function ChartGrid({ symbol, chartSettings, onChartSettingsChange, tickSize }: ChartGridProps) {
   return (
     <div className="grid h-full grid-cols-2 grid-rows-2 gap-2 p-2">
       {chartSettings.map((settings, index) => (
@@ -18,6 +19,7 @@ export function ChartGrid({ symbol, chartSettings, onChartSettingsChange }: Char
             chartIndex={index}
             settings={settings}
             onSettingsChange={(newSettings) => onChartSettingsChange(index, newSettings)}
+            tickSize={tickSize}
           />
         </ChartErrorBoundary>
       ))}

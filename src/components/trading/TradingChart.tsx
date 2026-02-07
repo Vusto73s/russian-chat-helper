@@ -36,6 +36,7 @@ interface TradingChartProps {
   chartIndex: number;
   settings: ChartSettings;
   onSettingsChange: (settings: ChartSettings) => void;
+  tickSize: string;
 }
 
 // Series reference type for dynamic indicators
@@ -46,7 +47,7 @@ interface IndicatorSeries {
   histogram?: ISeriesApi<'Histogram'>;
 }
 
-export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }: TradingChartProps) {
+export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, tickSize }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -174,11 +175,6 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       borderDownColor: 'hsl(0, 84%, 60%)',
       wickUpColor: 'hsl(142, 76%, 36%)',
       wickDownColor: 'hsl(0, 84%, 60%)',
-      priceFormat: {
-        type: 'price',
-        precision: 8,
-        minMove: 0.00000001,
-      },
     });
     seriesRef.current = candleSeries;
 
@@ -202,6 +198,21 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       indicatorSeriesRef.current = [];
     };
   }, []);
+
+  // Update price format based on tickSize from exchange
+  useEffect(() => {
+    if (!seriesRef.current || !tickSize) return;
+    const minMove = parseFloat(tickSize);
+    if (isNaN(minMove) || minMove <= 0) return;
+    const precision = Math.max(0, Math.round(-Math.log10(minMove)));
+    seriesRef.current.applyOptions({
+      priceFormat: {
+        type: 'price',
+        precision,
+        minMove,
+      },
+    });
+  }, [tickSize]);
 
   // Update price scale margins when layout changes
   useEffect(() => {

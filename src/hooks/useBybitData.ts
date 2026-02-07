@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { TradingPair, Candle, Timeframe } from '@/types/trading';
 
 const BYBIT_API = 'https://api.bybit.com';
@@ -7,6 +7,7 @@ export function useBybitPairs() {
   const [pairs, setPairs] = useState<TradingPair[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const tickSizeMapRef = useRef<Record<string, string>>({});
 
   const fetchPairs = useCallback(async () => {
     try {
@@ -21,8 +22,9 @@ export function useBybitPairs() {
           .sort((a: any, b: any) => parseFloat(b.turnover24h) - parseFloat(a.turnover24h))
           .slice(0, 650);
         
-        // Fetch leverage info for all pairs (with higher limit)
+        // Fetch leverage and tick size info for all pairs (with higher limit)
         const leverageMap: Record<string, string> = {};
+        const newTickSizeMap: Record<string, string> = {};
         try {
           const instrumentsResponse = await fetch(
             `${BYBIT_API}/v5/market/instruments-info?category=linear&limit=1000`
@@ -32,11 +34,13 @@ export function useBybitPairs() {
           if (instrumentsData.retCode === 0) {
             instrumentsData.result.list.forEach((item: any) => {
               leverageMap[item.symbol] = item.leverageFilter?.maxLeverage || '';
+              newTickSizeMap[item.symbol] = item.priceFilter?.tickSize || '';
             });
           }
         } catch (e) {
           console.warn('Failed to fetch leverage info:', e);
         }
+        tickSizeMapRef.current = { ...tickSizeMapRef.current, ...newTickSizeMap };
         
         const pairs = usdtSymbols.map((item: any) => ({
           symbol: item.symbol,
@@ -65,7 +69,9 @@ export function useBybitPairs() {
     return () => clearInterval(interval);
   }, [fetchPairs]);
 
-  return { pairs, loading, error, refetch: fetchPairs };
+  const getTickSize = useCallback((symbol: string) => tickSizeMapRef.current[symbol] || '', []);
+
+  return { pairs, loading, error, refetch: fetchPairs, getTickSize };
 }
 
 export function useBybitCandles(symbol: string, timeframe: Timeframe) {
