@@ -55,7 +55,7 @@ const DEFAULT_CHART_SETTINGS: ChartSettings[] = [
 ];
 
 export function TradingDashboard() {
-  const { pairs, loading, refetch } = useBybitPairs();
+  const { pairs, loading, refetch, getTickSize } = useBybitPairs();
   
   const [selectedSymbol, setSelectedSymbol] = useLocalStorage<string>(
     'trading-selected-symbol',
@@ -113,6 +113,7 @@ export function TradingDashboard() {
           symbol={selectedSymbol}
           chartSettings={chartSettings}
           onChartSettingsChange={handleChartSettingsChange}
+          tickSize={getTickSize(selectedSymbol)}
         />
       </div>
     </div>
