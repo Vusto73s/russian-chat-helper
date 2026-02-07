@@ -174,6 +174,11 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange }:
       borderDownColor: 'hsl(0, 84%, 60%)',
       wickUpColor: 'hsl(142, 76%, 36%)',
       wickDownColor: 'hsl(0, 84%, 60%)',
+      priceFormat: {
+        type: 'price',
+        precision: 8,
+        minMove: 0.00000001,
+      },
     });
     seriesRef.current = candleSeries;
 
