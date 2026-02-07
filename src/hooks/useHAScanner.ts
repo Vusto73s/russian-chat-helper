@@ -4,7 +4,9 @@ import { detectHAReversal, HASignal, PatternDirection } from '@/utils/haPatterns
 import { toast } from '@/hooks/use-toast';
 
 const BYBIT_API = 'https://api.bybit.com';
-const SCAN_INTERVAL = 15_000; // scan every 15 seconds
+const SCAN_INTERVAL = 10_000; // check every 10 seconds if it's time to scan
+const CANDLE_PERIOD_MS = 15 * 60 * 1000; // 15 minutes
+const PRE_CLOSE_WINDOW_MS = 60 * 1000; // scan within last 1 minute before candle close
 const SIGNAL_DURATION = 10 * 60 * 1000; // 10 minutes display
 
 // Simple beep sound using Web Audio API
@@ -101,7 +103,12 @@ export function useHAScanner(watchlist: string[], enabled: boolean = true) {
   const scan = useCallback(async () => {
     if (!enabled || watchlist.length === 0) return;
 
+    // Only scan within 1 minute before 15m candle close
     const now = Date.now();
+    const timeInCandle = now % CANDLE_PERIOD_MS;
+    const timeUntilClose = CANDLE_PERIOD_MS - timeInCandle;
+    
+    if (timeUntilClose > PRE_CLOSE_WINDOW_MS) return; // not yet time to scan
 
     // Scan each symbol sequentially with small delay to avoid rate limiting
     for (const symbol of watchlist) {
