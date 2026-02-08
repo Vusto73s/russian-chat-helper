@@ -4,8 +4,19 @@ import { HASignal } from '@/utils/haPatterns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Star, StarOff, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
+import { Search, Star, StarOff, RefreshCw, TrendingUp, TrendingDown, Flag, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+export type FlagColor = 'gray' | 'yellow' | 'green' | 'red';
+
+const FLAG_CYCLE: FlagColor[] = ['gray', 'yellow', 'green', 'red'];
+
+const FLAG_COLOR_CLASSES: Record<FlagColor, string> = {
+  gray: 'text-muted-foreground',
+  yellow: 'text-yellow-400',
+  green: 'text-green-500',
+  red: 'text-red-500',
+};
 
 interface WatchlistProps {
   pairs: TradingPair[];
@@ -16,6 +27,9 @@ interface WatchlistProps {
   loading: boolean;
   onRefresh: () => void;
   getSignal?: (symbol: string) => HASignal | undefined;
+  flags: Record<string, FlagColor>;
+  onToggleFlag: (symbol: string) => void;
+  onResetFlags: () => void;
 }
 
 export function Watchlist({
@@ -27,6 +41,9 @@ export function Watchlist({
   loading,
   onRefresh,
   getSignal,
+  flags,
+  onToggleFlag,
+  onResetFlags,
 }: WatchlistProps) {
   const [search, setSearch] = useState('');
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
@@ -73,15 +90,26 @@ export function Watchlist({
       <div className="border-b border-border p-3">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Торговые пары</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={onRefresh}
-            disabled={loading}
-          >
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={onResetFlags}
+              title="Сбросить все флажки"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={onRefresh}
+              disabled={loading}
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+          </div>
         </div>
         
         <div className="relative mb-2">
@@ -126,7 +154,17 @@ export function Watchlist({
                 )}
                 onClick={() => onSelectSymbol(pair.symbol)}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFlag(pair.symbol);
+                    }}
+                    className="hover:opacity-80"
+                    title="Флажок"
+                  >
+                    <Flag className={cn("h-3 w-3", FLAG_COLOR_CLASSES[flags[pair.symbol] || 'gray'])} />
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

@@ -10,7 +10,8 @@ import {
   HistogramSeries,
   LineData,
   HistogramData,
-  LineStyle
+  LineStyle,
+  CreatePriceLineOptions
 } from 'lightweight-charts';
 import { useBybitCandles } from '@/hooks/useBybitData';
 import { ChartSettings, TIMEFRAME_LABELS, Timeframe, CandleType } from '@/types/trading';
@@ -19,7 +20,9 @@ import { convertToHeikinAshi } from '@/utils/heikinAshi';
 import { calculateSMA, calculateEMA, calculateRSI, calculateMACD, calculateBollingerBands, calculateStochastic, calculateATRPercent } from '@/utils/indicators';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { IndicatorSettings } from './IndicatorSettings';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Minus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 // Timeframe durations in milliseconds
 const TIMEFRAME_MS: Record<Timeframe, number> = {
@@ -54,6 +57,9 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, t
   const indicatorSeriesRef = useRef<IndicatorSeries[]>([]);
   const isFirstLoadRef = useRef(true);
   const [countdown, setCountdown] = useState<string>('');
+  const [drawingMode, setDrawingMode] = useState(false);
+  const [priceLines, setPriceLines] = useState<number[]>([]);
+  const priceLinesRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']>[]>([]);
   
   const { candles, loading } = useBybitCandles(symbol, settings.timeframe);
 
@@ -82,6 +88,49 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, t
     }, 1000);
     return () => clearInterval(interval);
   }, [calculateCountdown]);
+
+  // Add horizontal line at price level
+  const addPriceLine = useCallback((price: number) => {
+    if (!seriesRef.current) return;
+    const line = seriesRef.current.createPriceLine({
+      price,
+      color: '#2196F3',
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: '',
+    });
+    priceLinesRef.current.push(line);
+    setPriceLines(prev => [...prev, price]);
+  }, []);
+
+  // Remove all horizontal lines
+  const removeAllPriceLines = useCallback(() => {
+    if (!seriesRef.current) return;
+    priceLinesRef.current.forEach(line => {
+      seriesRef.current?.removePriceLine(line);
+    });
+    priceLinesRef.current = [];
+    setPriceLines([]);
+  }, []);
+
+  // Handle chart click for drawing mode
+  useEffect(() => {
+    if (!chartRef.current || !drawingMode) return;
+    const chart = chartRef.current;
+
+    const handler = (param: any) => {
+      if (!param.point || !seriesRef.current) return;
+      const price = seriesRef.current.coordinateToPrice(param.point.y);
+      if (price !== null && price !== undefined) {
+        addPriceLine(price as number);
+        setDrawingMode(false);
+      }
+    };
+
+    chart.subscribeClick(handler);
+    return () => chart.unsubscribeClick(handler);
+  }, [drawingMode, addPriceLine]);
 
   const displayCandles = useMemo(() => {
     if (settings.candleType === 'heikinashi') {
@@ -610,11 +659,33 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, t
             indicators={settings.indicators}
             onIndicatorsChange={handleIndicatorsChange}
           />
+
+          <Button
+            variant={drawingMode ? "secondary" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setDrawingMode(!drawingMode)}
+            title="Добавить горизонтальную линию"
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+
+          {priceLines.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive"
+              onClick={removeAllPriceLines}
+              title="Удалить все линии"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Chart */}
-      <div className="relative flex-1">
+      <div className={cn("relative flex-1", drawingMode && "cursor-crosshair")}>
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/80">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
