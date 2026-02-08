@@ -3,6 +3,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useHAScanner } from '@/hooks/useHAScanner';
 import { ChartSettings } from '@/types/trading';
 import { IndicatorConfig } from '@/types/indicators';
+import { FlagColor } from './Watchlist';
 import { Watchlist } from './Watchlist';
 import { ChartGrid } from './ChartGrid';
 
@@ -72,8 +73,32 @@ export function TradingDashboard() {
     DEFAULT_CHART_SETTINGS
   );
 
+  const [flags, setFlags] = useLocalStorage<Record<string, FlagColor>>(
+    'trading-flags',
+    {}
+  );
+
   // HA pattern scanner for favorites on 15m timeframe
   const { getSignal } = useHAScanner(watchlist);
+
+  const FLAG_CYCLE: FlagColor[] = ['gray', 'yellow', 'green', 'red'];
+
+  const handleToggleFlag = (symbol: string) => {
+    setFlags((prev) => {
+      const current = prev[symbol] || 'gray';
+      const nextIndex = (FLAG_CYCLE.indexOf(current) + 1) % FLAG_CYCLE.length;
+      const next = FLAG_CYCLE[nextIndex];
+      if (next === 'gray') {
+        const { [symbol]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [symbol]: next };
+    });
+  };
+
+  const handleResetFlags = () => {
+    setFlags({});
+  };
 
   const handleToggleWatchlist = (symbol: string) => {
     setWatchlist((prev) =>
@@ -104,6 +129,9 @@ export function TradingDashboard() {
           loading={loading}
           onRefresh={refetch}
           getSignal={getSignal}
+          flags={flags}
+          onToggleFlag={handleToggleFlag}
+          onResetFlags={handleResetFlags}
         />
       </div>
 
