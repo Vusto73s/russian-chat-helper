@@ -12,10 +12,10 @@ export type FlagColor = 'gray' | 'yellow' | 'green' | 'red';
 const FLAG_CYCLE: FlagColor[] = ['gray', 'yellow', 'green', 'red'];
 
 const FLAG_COLOR_CLASSES: Record<FlagColor, string> = {
-  gray: 'text-muted-foreground',
-  yellow: 'text-yellow-400',
-  green: 'text-green-500',
-  red: 'text-red-500',
+  gray: 'text-muted-foreground fill-muted-foreground',
+  yellow: 'text-yellow-400 fill-yellow-400',
+  green: 'text-green-500 fill-green-500',
+  red: 'text-red-500 fill-red-500',
 };
 
 interface WatchlistProps {
