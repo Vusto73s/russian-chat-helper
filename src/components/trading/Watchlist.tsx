@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { TradingPair } from '@/types/trading';
 import { HASignal } from '@/utils/haPatterns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Star, StarOff, RefreshCw, TrendingUp, TrendingDown, Flag, RotateCcw } from 'lucide-react';
+import { Search, Star, StarOff, RefreshCw, TrendingUp, TrendingDown, Flag, RotateCcw, ArrowDownAZ } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type FlagColor = 'gray' | 'yellow' | 'green' | 'red';
@@ -24,6 +24,7 @@ interface WatchlistProps {
   onSelectSymbol: (symbol: string) => void;
   watchlist: string[];
   onToggleWatchlist: (symbol: string) => void;
+  onReorderWatchlist: (newOrder: string[]) => void;
   loading: boolean;
   onRefresh: () => void;
   getSignal?: (symbol: string) => HASignal | undefined;
@@ -38,6 +39,7 @@ export function Watchlist({
   onSelectSymbol,
   watchlist,
   onToggleWatchlist,
+  onReorderWatchlist,
   loading,
   onRefresh,
   getSignal,
@@ -47,6 +49,8 @@ export function Watchlist({
 }: WatchlistProps) {
   const [search, setSearch] = useState('');
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
+  const [draggedSymbol, setDraggedSymbol] = useState<string | null>(null);
+  const dragOverSymbolRef = useRef<string | null>(null);
 
   const filteredPairs = pairs
     .filter((pair) => {
@@ -62,13 +66,52 @@ export function Watchlist({
       const aInWatchlist = watchlist.includes(a.symbol);
       const bInWatchlist = watchlist.includes(b.symbol);
       
-      // If both are in watchlist or both are not, sort alphabetically
-      if (aInWatchlist === bInWatchlist) {
-        return a.symbol.localeCompare(b.symbol);
+      if (aInWatchlist && bInWatchlist) {
+        // Use watchlist order for favorites
+        return watchlist.indexOf(a.symbol) - watchlist.indexOf(b.symbol);
       }
-      // Watchlist items first
-      return aInWatchlist ? -1 : 1;
+      if (aInWatchlist !== bInWatchlist) {
+        return aInWatchlist ? -1 : 1;
+      }
+      return a.symbol.localeCompare(b.symbol);
     });
+
+  const handleDragStart = (symbol: string) => {
+    if (!watchlist.includes(symbol)) return;
+    setDraggedSymbol(symbol);
+  };
+
+  const handleDragOver = (e: React.DragEvent, symbol: string) => {
+    if (!draggedSymbol || !watchlist.includes(symbol)) return;
+    e.preventDefault();
+    dragOverSymbolRef.current = symbol;
+  };
+
+  const handleDrop = (e: React.DragEvent, targetSymbol: string) => {
+    e.preventDefault();
+    if (!draggedSymbol || !watchlist.includes(targetSymbol) || draggedSymbol === targetSymbol) {
+      setDraggedSymbol(null);
+      return;
+    }
+
+    const newOrder = [...watchlist];
+    const fromIdx = newOrder.indexOf(draggedSymbol);
+    const toIdx = newOrder.indexOf(targetSymbol);
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, draggedSymbol);
+    onReorderWatchlist(newOrder);
+    setDraggedSymbol(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedSymbol(null);
+    dragOverSymbolRef.current = null;
+  };
+
+  const resetWatchlistOrder = () => {
+    const sorted = [...watchlist].sort((a, b) => a.localeCompare(b));
+    onReorderWatchlist(sorted);
+  };
 
   const formatPrice = (price: string) => {
     const num = parseFloat(price);
@@ -91,6 +134,15 @@ export function Watchlist({
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Торговые пары</h2>
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={resetWatchlistOrder}
+              title="Сортировка избранного по алфавиту"
+            >
+              <ArrowDownAZ className="h-3.5 w-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -139,10 +191,16 @@ export function Watchlist({
             const isSelected = pair.symbol === selectedSymbol;
             const isInWatchlist = watchlist.includes(pair.symbol);
             const signal = getSignal?.(pair.symbol);
+            const isDragging = draggedSymbol === pair.symbol;
 
             return (
               <div
                 key={pair.symbol}
+                draggable={isInWatchlist}
+                onDragStart={() => handleDragStart(pair.symbol)}
+                onDragOver={(e) => handleDragOver(e, pair.symbol)}
+                onDrop={(e) => handleDrop(e, pair.symbol)}
+                onDragEnd={handleDragEnd}
                 className={cn(
                   "group flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 transition-colors",
                   isSelected
@@ -150,7 +208,9 @@ export function Watchlist({
                     : "hover:bg-accent",
                   signal && "ring-1 ring-inset",
                   signal?.direction === 'bullish' && "ring-green-500/50",
-                  signal?.direction === 'bearish' && "ring-red-500/50"
+                  signal?.direction === 'bearish' && "ring-red-500/50",
+                  isDragging && "opacity-40",
+                  isInWatchlist && "cursor-grab active:cursor-grabbing"
                 )}
                 onClick={() => onSelectSymbol(pair.symbol)}
               >

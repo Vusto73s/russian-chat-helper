@@ -13,6 +13,7 @@ export interface Candle {
   high: number;
   low: number;
   close: number;
+  volume?: number;
 }
 
 export type Timeframe = '1' | '5' | '15' | '60' | '240' | 'D';

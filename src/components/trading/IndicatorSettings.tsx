@@ -22,6 +22,7 @@ import {
   MACDConfig,
   StochasticConfig,
   ATRConfig,
+  VolumeConfig,
 } from '@/types/indicators';
 
 interface IndicatorSettingsProps {
@@ -34,7 +35,7 @@ const AVAILABLE_COLORS = [
   '#3498DB', '#2ECC71', '#E74C3C', '#F39C12', '#1ABC9C'
 ];
 
-const INDICATOR_TYPES: IndicatorType[] = ['sma', 'ema', 'bb', 'rsi', 'macd', 'stochastic', 'atr'];
+const INDICATOR_TYPES: IndicatorType[] = ['sma', 'ema', 'bb', 'rsi', 'macd', 'stochastic', 'atr', 'volume'];
 
 export function IndicatorSettings({ indicators, onIndicatorsChange }: IndicatorSettingsProps) {
   const [openItems, setOpenItems] = useState<Set<string>>(new Set());
@@ -96,6 +97,8 @@ export function IndicatorSettings({ indicators, onIndicatorsChange }: IndicatorS
         return `Stoch (${indicator.kPeriod}, ${indicator.dPeriod}, ${indicator.smooth})`;
       case 'atr':
         return `ATR% (${indicator.period})`;
+      case 'volume':
+        return `Vol`;
     }
   };
 
@@ -115,6 +118,8 @@ export function IndicatorSettings({ indicators, onIndicatorsChange }: IndicatorS
         return <StochasticSettings indicator={indicator} onUpdate={(u) => updateIndicator(indicator.id, u)} />;
       case 'atr':
         return <ATRSettings indicator={indicator} onUpdate={(u) => updateIndicator(indicator.id, u)} />;
+      case 'volume':
+        return <VolumeSettings indicator={indicator as VolumeConfig} onUpdate={(u) => updateIndicator(indicator.id, u)} />;
       default:
         return null;
     }
@@ -608,6 +613,21 @@ function ATRSettings({ indicator, onUpdate }: { indicator: ATRConfig; onUpdate: 
         <p className="text-[10px] text-muted-foreground">
           Выше высокого порога = красный (очень высокая волатильность)
         </p>
+      </div>
+    </div>
+  );
+}
+
+function VolumeSettings({ indicator, onUpdate }: { indicator: VolumeConfig; onUpdate: (u: Partial<VolumeConfig>) => void }) {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <Label className="text-xs">Цвет роста</Label>
+        <ColorPicker value={indicator.upColor} onChange={(upColor) => onUpdate({ upColor })} />
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Цвет падения</Label>
+        <ColorPicker value={indicator.downColor} onChange={(downColor) => onUpdate({ downColor })} />
       </div>
     </div>
   );
