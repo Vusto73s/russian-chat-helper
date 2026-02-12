@@ -1,7 +1,7 @@
 // Indicator type definitions
 
 export type OverlayIndicatorType = 'sma' | 'ema' | 'bb';
-export type PaneIndicatorType = 'rsi' | 'macd' | 'stochastic' | 'atr';
+export type PaneIndicatorType = 'rsi' | 'macd' | 'stochastic' | 'atr' | 'volume';
 export type IndicatorType = OverlayIndicatorType | PaneIndicatorType;
 
 // Base configuration
@@ -72,6 +72,13 @@ export interface ATRConfig extends BaseIndicatorConfig {
   highThreshold: number;   // Below this = orange, above = red
 }
 
+// Volume Configuration
+export interface VolumeConfig extends BaseIndicatorConfig {
+  type: 'volume';
+  upColor: string;
+  downColor: string;
+}
+
 // Union type for all indicator configs
 export type IndicatorConfig = 
   | SMAConfig 
@@ -80,7 +87,8 @@ export type IndicatorConfig =
   | RSIConfig 
   | MACDConfig 
   | StochasticConfig
-  | ATRConfig;
+  | ATRConfig
+  | VolumeConfig;
 
 // Helper to check if indicator is overlay (on main chart)
 export function isOverlayIndicator(type: IndicatorType): type is OverlayIndicatorType {
@@ -151,10 +159,18 @@ export const DEFAULT_INDICATOR_CONFIGS: Record<IndicatorType, () => IndicatorCon
     type: 'atr',
     enabled: true,
     period: 14,
-    color: '#2ECC71', // Default green, but color changes dynamically
+    color: '#2ECC71',
     lowThreshold: 0.5,
     mediumThreshold: 1.5,
     highThreshold: 3,
+  }),
+  volume: () => ({
+    id: crypto.randomUUID(),
+    type: 'volume',
+    enabled: true,
+    color: '#26A69A',
+    upColor: 'rgba(38, 166, 154, 0.5)',
+    downColor: 'rgba(239, 83, 80, 0.5)',
   }),
 };
 
@@ -167,6 +183,7 @@ export const INDICATOR_LABELS: Record<IndicatorType, string> = {
   macd: 'MACD',
   stochastic: 'Stochastic Oscillator',
   atr: 'ATR % (Average True Range)',
+  volume: 'Volume (Объём)',
 };
 
 // Short labels for display
@@ -178,6 +195,7 @@ export const INDICATOR_SHORT_LABELS: Record<IndicatorType, string> = {
   macd: 'MACD',
   stochastic: 'Stoch',
   atr: 'ATR%',
+  volume: 'Vol',
 };
 
 // Maximum instances per indicator type

@@ -108,6 +108,10 @@ export function TradingDashboard() {
     );
   };
 
+  const handleReorderWatchlist = (newOrder: string[]) => {
+    setWatchlist(newOrder);
+  };
+
   const handleChartSettingsChange = (index: number, settings: ChartSettings) => {
     setChartSettings((prev) => {
       const updated = [...prev];
@@ -126,6 +130,7 @@ export function TradingDashboard() {
           onSelectSymbol={setSelectedSymbol}
           watchlist={watchlist}
           onToggleWatchlist={handleToggleWatchlist}
+          onReorderWatchlist={handleReorderWatchlist}
           loading={loading}
           onRefresh={refetch}
           getSignal={getSignal}

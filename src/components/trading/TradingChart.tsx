@@ -15,7 +15,7 @@ import {
 } from 'lightweight-charts';
 import { useBybitCandles } from '@/hooks/useBybitData';
 import { ChartSettings, TIMEFRAME_LABELS, Timeframe, CandleType } from '@/types/trading';
-import { IndicatorConfig, SMAConfig, EMAConfig, BBConfig, RSIConfig, MACDConfig, StochasticConfig, ATRConfig, isOverlayIndicator } from '@/types/indicators';
+import { IndicatorConfig, SMAConfig, EMAConfig, BBConfig, RSIConfig, MACDConfig, StochasticConfig, ATRConfig, VolumeConfig, isOverlayIndicator } from '@/types/indicators';
 import { convertToHeikinAshi } from '@/utils/heikinAshi';
 import { calculateSMA, calculateEMA, calculateRSI, calculateMACD, calculateBollingerBands, calculateStochastic, calculateATRPercent } from '@/utils/indicators';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -89,6 +89,8 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, t
     return () => clearInterval(interval);
   }, [calculateCountdown]);
 
+  const draggingLineRef = useRef<{ index: number; startY: number; startPrice: number } | null>(null);
+
   // Add horizontal line at price level
   const addPriceLine = useCallback((price: number) => {
     if (!seriesRef.current) return;
@@ -131,6 +133,88 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, t
     chart.subscribeClick(handler);
     return () => chart.unsubscribeClick(handler);
   }, [drawingMode, addPriceLine]);
+
+  // Draggable price lines via mouse events
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container || !seriesRef.current) return;
+
+    const DRAG_THRESHOLD = 5; // px proximity to "grab" a line
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (drawingMode || priceLinesRef.current.length === 0 || !seriesRef.current) return;
+      const rect = container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+
+      // Find closest price line
+      for (let i = 0; i < priceLinesRef.current.length; i++) {
+        const linePrice = (priceLinesRef.current[i].options() as any).price;
+        const lineY = seriesRef.current.priceToCoordinate(linePrice);
+        if (lineY !== null && Math.abs(y - lineY) <= DRAG_THRESHOLD) {
+          draggingLineRef.current = { index: i, startY: y, startPrice: linePrice };
+          container.style.cursor = 'ns-resize';
+          e.preventDefault();
+          // Disable chart interactions while dragging
+          chartRef.current?.applyOptions({ handleScroll: false, handleScale: false });
+          return;
+        }
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!draggingLineRef.current || !seriesRef.current) return;
+      const rect = container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const newPrice = seriesRef.current.coordinateToPrice(y);
+      if (newPrice === null) return;
+
+      const line = priceLinesRef.current[draggingLineRef.current.index];
+      if (line) {
+        line.applyOptions({ price: newPrice as number });
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (draggingLineRef.current) {
+        // Update stored prices
+        const newPrices = priceLinesRef.current.map(l => (l.options() as any).price as number);
+        setPriceLines(newPrices);
+        draggingLineRef.current = null;
+        container.style.cursor = '';
+        chartRef.current?.applyOptions({ handleScroll: true, handleScale: true });
+      }
+    };
+
+    // Show grab cursor on hover over lines
+    const handleHoverCursor = (e: MouseEvent) => {
+      if (draggingLineRef.current || drawingMode || priceLinesRef.current.length === 0 || !seriesRef.current) return;
+      const rect = container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+
+      let nearLine = false;
+      for (const line of priceLinesRef.current) {
+        const linePrice = (line.options() as any).price;
+        const lineY = seriesRef.current.priceToCoordinate(linePrice);
+        if (lineY !== null && Math.abs(y - lineY) <= DRAG_THRESHOLD) {
+          nearLine = true;
+          break;
+        }
+      }
+      container.style.cursor = nearLine ? 'ns-resize' : '';
+    };
+
+    container.addEventListener('mousedown', handleMouseDown);
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mousemove', handleHoverCursor);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      container.removeEventListener('mousedown', handleMouseDown);
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mousemove', handleHoverCursor);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [drawingMode, priceLines]);
 
   const displayCandles = useMemo(() => {
     if (settings.candleType === 'heikinashi') {
@@ -446,6 +530,25 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, t
           newSeries.histogram = histogram;
           break;
         }
+        case 'volume': {
+          const volConfig = indicator as VolumeConfig;
+          const histogram = chart.addSeries(HistogramSeries, {
+            priceLineVisible: false,
+            lastValueVisible: true,
+            priceScaleId: `volume_${indicator.id}`,
+            priceFormat: {
+              type: 'volume',
+            },
+          });
+          if (paneConfig) {
+            histogram.priceScale().applyOptions({
+              scaleMargins: { top: paneConfig.scaleTop, bottom: paneConfig.scaleBottom },
+              borderVisible: false,
+            });
+          }
+          newSeries.histogram = histogram;
+          break;
+        }
       }
 
       indicatorSeriesRef.current.push(newSeries);
@@ -578,6 +681,16 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, t
               time: p.time as Time,
               value: p.value,
               color: p.color,
+            }));
+            indSeries.histogram?.setData(histData);
+            break;
+          }
+          case 'volume': {
+            const volConfig = config as VolumeConfig;
+            const histData: HistogramData<Time>[] = displayCandles.map((c, idx) => ({
+              time: c.time as Time,
+              value: c.volume || 0,
+              color: c.close >= c.open ? volConfig.upColor : volConfig.downColor,
             }));
             indSeries.histogram?.setData(histData);
             break;

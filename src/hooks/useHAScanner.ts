@@ -9,54 +9,47 @@ const CANDLE_PERIOD_MS = 15 * 60 * 1000; // 15 minutes
 const PRE_CLOSE_WINDOW_MS = 60 * 1000; // scan within last 1 minute before candle close
 const SIGNAL_DURATION = 10 * 60 * 1000; // 10 minutes display
 
-// Simple beep sound using Web Audio API
+// Soft chime sound using Web Audio API
 function playAlertSound(direction: PatternDirection) {
   try {
     const ctx = new AudioContext();
-    const oscillator = ctx.createOscillator();
+
+    // Use a soft triangle wave for a gentle chime
+    const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    
-    oscillator.connect(gain);
+    osc.connect(gain);
     gain.connect(ctx.destination);
-    
-    // Bullish = ascending tone, Bearish = descending tone
-    if (direction === 'bullish') {
-      oscillator.frequency.setValueAtTime(600, ctx.currentTime);
-      oscillator.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.3);
-    } else {
-      oscillator.frequency.setValueAtTime(900, ctx.currentTime);
-      oscillator.frequency.linearRampToValueAtTime(600, ctx.currentTime + 0.3);
-    }
-    
-    oscillator.type = 'sine';
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
-    
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + 0.4);
-    
-    // Play second beep
+
+    osc.type = 'triangle';
+    const baseFreq = direction === 'bullish' ? 523 : 440; // C5 or A4
+    osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+
+    // Gentle fade in/out
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.8);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.8);
+
+    // Second soft note after a pause
     setTimeout(() => {
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.connect(gain2);
       gain2.connect(ctx.destination);
-      
-      if (direction === 'bullish') {
-        osc2.frequency.setValueAtTime(900, ctx.currentTime);
-        osc2.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.3);
-      } else {
-        osc2.frequency.setValueAtTime(600, ctx.currentTime);
-        osc2.frequency.linearRampToValueAtTime(400, ctx.currentTime + 0.3);
-      }
-      
-      osc2.type = 'sine';
-      gain2.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain2.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
-      
+
+      osc2.type = 'triangle';
+      const freq2 = direction === 'bullish' ? 659 : 392; // E5 or G4
+      osc2.frequency.setValueAtTime(freq2, ctx.currentTime);
+
+      gain2.gain.setValueAtTime(0, ctx.currentTime);
+      gain2.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.05);
+      gain2.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.8);
+
       osc2.start(ctx.currentTime);
-      osc2.stop(ctx.currentTime + 0.4);
-    }, 400);
+      osc2.stop(ctx.currentTime + 0.8);
+    }, 500);
   } catch (e) {
     console.warn('Could not play alert sound:', e);
   }
