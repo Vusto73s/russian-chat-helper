@@ -555,6 +555,37 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, t
     });
   }, [enabledIndicators.map(i => i.id).join(','), paneLayout.panes]);
 
+  // Update pane scale margins whenever layout changes (fixes overlapping panes)
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    indicatorSeriesRef.current.forEach(indSeries => {
+      const paneConfig = paneLayout.panes.find(p => p.id === indSeries.id);
+      if (!paneConfig) return;
+
+      // Apply margins to the primary scale-setting series for each pane type
+      const applyMargins = (series: ISeriesApi<any>) => {
+        series.priceScale().applyOptions({
+          scaleMargins: { top: paneConfig.scaleTop, bottom: paneConfig.scaleBottom },
+          borderVisible: false,
+        });
+      };
+
+      switch (indSeries.type) {
+        case 'rsi':
+        case 'stochastic':
+          if (indSeries.series[0]) applyMargins(indSeries.series[0]);
+          break;
+        case 'macd':
+        case 'atr':
+        case 'volume':
+          if (indSeries.histogram) applyMargins(indSeries.histogram);
+          else if (indSeries.series[0]) applyMargins(indSeries.series[0]);
+          break;
+      }
+    });
+  }, [paneLayout.panes]);
+
   // Update series colors when indicator config changes
   useEffect(() => {
     indicatorSeriesRef.current.forEach(indSeries => {
