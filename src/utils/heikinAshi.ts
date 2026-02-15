@@ -21,6 +21,7 @@ export function convertToHeikinAshi(candles: Candle[]): Candle[] {
         high: haHigh,
         low: haLow,
         close: haClose,
+        volume: current.volume,
       });
     } else {
       const prev = heikinAshi[i - 1];
@@ -35,6 +36,7 @@ export function convertToHeikinAshi(candles: Candle[]): Candle[] {
         high: haHigh,
         low: haLow,
         close: haClose,
+        volume: current.volume,
       });
     }
   }

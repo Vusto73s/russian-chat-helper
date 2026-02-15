@@ -718,7 +718,8 @@ export function TradingChart({ symbol, chartIndex, settings, onSettingsChange, t
           }
           case 'volume': {
             const volConfig = config as VolumeConfig;
-            const histData: HistogramData<Time>[] = displayCandles.map((c, idx) => ({
+            // Always use original candles for volume data (HA candles may lack volume)
+            const histData: HistogramData<Time>[] = candles.map((c) => ({
               time: c.time as Time,
               value: c.volume || 0,
               color: c.close >= c.open ? volConfig.upColor : volConfig.downColor,
